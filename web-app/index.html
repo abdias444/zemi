@@ -40,6 +40,10 @@
       --orange-glow: rgba(251, 191, 36, 0.35);
       --cyan: #22d3ee;
       --cyan-glow: rgba(34, 211, 238, 0.3);
+      --purple: #a78bfa;
+      --purple-glow: rgba(167, 139, 250, 0.3);
+      --pink: #f472b6;
+      --pink-glow: rgba(244, 114, 182, 0.3);
       --radius: 16px;
       --radius-sm: 10px;
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -513,6 +517,369 @@
       font-style: italic;
     }
 
+    /* ─── Sensor Cards ───────────────────────────────── */
+    .sensors-section {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 0 24px 16px;
+    }
+
+    .sensors-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .sensor-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 12px;
+      text-align: center;
+      backdrop-filter: blur(20px);
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sensor-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .sensor-card--temp {
+      border-color: rgba(248, 113, 113, 0.2);
+    }
+
+    .sensor-card--temp::before {
+      background: radial-gradient(circle at 50% 0%, rgba(248, 113, 113, 0.08), transparent 70%);
+    }
+
+    .sensor-card--temp.active {
+      border-color: rgba(248, 113, 113, 0.4);
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.15);
+    }
+
+    .sensor-card--temp.active::before {
+      opacity: 1;
+    }
+
+    .sensor-card--hum {
+      border-color: rgba(108, 140, 255, 0.2);
+    }
+
+    .sensor-card--hum::before {
+      background: radial-gradient(circle at 50% 0%, rgba(108, 140, 255, 0.08), transparent 70%);
+    }
+
+    .sensor-card--hum.active {
+      border-color: rgba(108, 140, 255, 0.4);
+      box-shadow: 0 0 20px rgba(108, 140, 255, 0.15);
+    }
+
+    .sensor-card--hum.active::before {
+      opacity: 1;
+    }
+
+    .sensor-card--heat {
+      border-color: rgba(251, 191, 36, 0.2);
+    }
+
+    .sensor-card--heat::before {
+      background: radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.08), transparent 70%);
+    }
+
+    .sensor-card--heat.active {
+      border-color: rgba(251, 191, 36, 0.4);
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.15);
+    }
+
+    .sensor-card--heat.active::before {
+      opacity: 1;
+    }
+
+    .sensor-card__icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+      display: block;
+      filter: drop-shadow(0 0 8px currentColor);
+    }
+
+    .sensor-card__value {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 2px;
+      transition: all 0.3s ease;
+    }
+
+    .sensor-card--temp .sensor-card__value {
+      color: var(--red);
+    }
+
+    .sensor-card--hum .sensor-card__value {
+      color: var(--accent);
+    }
+
+    .sensor-card--heat .sensor-card__value {
+      color: var(--orange);
+    }
+
+    .sensor-card__label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+    }
+
+    .sensor-card__unit {
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+
+    .sensor-card__updated {
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-top: 6px;
+    }
+
+    @keyframes sensorPulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .sensor-card.pulse .sensor-card__value {
+      animation: sensorPulse 0.4s ease;
+    }
+
+    @media (max-width: 360px) {
+      .sensors-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .sensor-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        padding: 12px 16px;
+      }
+
+      .sensor-card__icon {
+        margin-bottom: 0;
+        font-size: 20px;
+      }
+
+      .sensor-card__value {
+        font-size: 18px;
+      }
+    }
+
+    /* ─── Gas Sensor Card ───────────────────────────── */
+    .gas-section {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 0 24px 16px;
+    }
+
+    .gas-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      backdrop-filter: blur(20px);
+      transition: all 0.4s ease;
+    }
+
+    .gas-card.alerta {
+      border-color: rgba(251, 191, 36, 0.5);
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.15);
+    }
+
+    .gas-card.peligro {
+      border-color: rgba(248, 113, 113, 0.5);
+      box-shadow: 0 0 25px rgba(248, 113, 113, 0.2);
+      animation: dangerPulse 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes dangerPulse {
+      from {
+        box-shadow: 0 0 15px rgba(248, 113, 113, 0.15);
+      }
+
+      to {
+        box-shadow: 0 0 30px rgba(248, 113, 113, 0.35);
+      }
+    }
+
+    .gas-card__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .gas-card__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .gas-card__title span {
+      font-size: 20px;
+    }
+
+    .gas-card__status {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--green);
+    }
+
+    .gas-card__status.alerta {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--orange);
+    }
+
+    .gas-card__status.peligro {
+      background: rgba(248, 113, 113, 0.15);
+      color: var(--red);
+    }
+
+    .gas-card__bar-container {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      height: 18px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .gas-card__bar {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 0.5s ease, background 0.5s ease;
+      background: linear-gradient(90deg, var(--green), var(--green));
+      width: 0%;
+      position: relative;
+    }
+
+    .gas-card__bar::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15));
+      border-radius: inherit;
+    }
+
+    .gas-card__footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .gas-card__value {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    /* ─── Radar Section ────────────────────────────── */
+    .radar-section {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 0 24px 16px;
+    }
+
+    .radar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      backdrop-filter: blur(20px);
+      text-align: center;
+    }
+
+    .radar-card__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .radar-card__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .radar-card__title span {
+      font-size: 18px;
+    }
+
+    .radar-card__distance {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--cyan);
+      text-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    .radar-card__distance small {
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+
+    .radar-canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      margin: 0 auto;
+    }
+
+    #radarCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
     /* ─── Footer ─────────────────────────────────────── */
     .footer {
       position: relative;
@@ -612,6 +979,61 @@
     </div>
   </div>
 
+  <!-- ── Sensor DHT22 ──────────────────────────────── -->
+  <div class="sensors-section">
+    <div class="sensors-grid">
+      <div id="cardTemp" class="sensor-card sensor-card--temp">
+        <span class="sensor-card__icon">🌡️</span>
+        <span id="valTemp" class="sensor-card__value">--<span class="sensor-card__unit">°C</span></span>
+        <span class="sensor-card__label">Temperatura</span>
+        <span id="timeTemp" class="sensor-card__updated">sin datos</span>
+      </div>
+      <div id="cardHum" class="sensor-card sensor-card--hum">
+        <span class="sensor-card__icon">💧</span>
+        <span id="valHum" class="sensor-card__value">--<span class="sensor-card__unit">%</span></span>
+        <span class="sensor-card__label">Humedad</span>
+        <span id="timeHum" class="sensor-card__updated">sin datos</span>
+      </div>
+      <div id="cardHeat" class="sensor-card sensor-card--heat">
+        <span class="sensor-card__icon">🔥</span>
+        <span id="valHeat" class="sensor-card__value">--<span class="sensor-card__unit">°C</span></span>
+        <span class="sensor-card__label">Sensación</span>
+        <span id="timeHeat" class="sensor-card__updated">sin datos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Gas MQ2 Sensor ─────────────────────────────── -->
+  <div class="gas-section">
+    <div id="gasCard" class="gas-card">
+      <div class="gas-card__header">
+        <div class="gas-card__title"><span>💨</span> Sensor de Gas MQ2</div>
+        <span id="gasStatus" class="gas-card__status">NORMAL</span>
+      </div>
+      <div class="gas-card__bar-container">
+        <div id="gasBar" class="gas-card__bar" style="width: 0%;"></div>
+      </div>
+      <div class="gas-card__footer">
+        <span>Nivel: <span id="gasValue" class="gas-card__value">0%</span></span>
+        <span>Raw: <span id="gasRaw">0</span></span>
+        <span id="gasTime">sin datos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Radar Ultrasonico ──────────────────────────── -->
+  <div class="radar-section">
+    <div class="radar-card">
+      <div class="radar-card__header">
+        <div class="radar-card__title"><span>📡</span> Radar Ultrasonico</div>
+        <span id="radarDistance" class="radar-card__distance">-- <small>cm</small></span>
+      </div>
+      <div class="radar-canvas-container">
+        <canvas id="radarCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Current Command ───────────────────────────── -->
   <div class="command-display">
     <div class="command-card">
@@ -681,6 +1103,9 @@
       clientId: `ZemiWeb_${Math.random().toString(16).slice(2, 8)}`,
       topicCmd: 'zemi/motores/cmd',
       topicStatus: 'zemi/motores/status',
+      topicDht: 'zemi/sensores/dht',
+      topicGas: 'zemi/sensores/gas',
+      topicUltra: 'zemi/sensores/ultrasonico',
     };
 
     // ─── Command Map ──────────────────────────────────
@@ -708,6 +1133,45 @@
     const currentCmd = $('currentCmd');
     const logBody = $('logBody');
     const buttons = document.querySelectorAll('[data-cmd]');
+
+    // ── Sensor DOM elements ──
+    const valTemp = $('valTemp');
+    const valHum = $('valHum');
+    const valHeat = $('valHeat');
+    const timeTemp = $('timeTemp');
+    const timeHum = $('timeHum');
+    const timeHeat = $('timeHeat');
+    const cardTemp = $('cardTemp');
+    const cardHum = $('cardHum');
+    const cardHeat = $('cardHeat');
+
+    // ── Gas DOM elements ──
+    const gasCard = $('gasCard');
+    const gasBar = $('gasBar');
+    const gasValue = $('gasValue');
+    const gasRaw = $('gasRaw');
+    const gasStatus = $('gasStatus');
+    const gasTime = $('gasTime');
+
+    // ── Radar DOM & state ──
+    const radarCanvas = $('radarCanvas');
+    const radarDistance = $('radarDistance');
+    const radarCtx = radarCanvas.getContext('2d');
+    const radarHistory = [];  // {angulo, distancia} por cada lectura
+    const RADAR_MAX_POINTS = 180;  // almacenar un barrido completo
+    const RADAR_MAX_CM = 400;
+    let radarAngle = 0;  // ángulo actual del servo (viene por MQTT)
+    let radarAnimId = null;
+
+    // Resize canvas
+    function resizeRadar() {
+      const container = radarCanvas.parentElement;
+      radarCanvas.width = container.clientWidth * window.devicePixelRatio;
+      radarCanvas.height = container.clientHeight * window.devicePixelRatio;
+      radarCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    resizeRadar();
+    window.addEventListener('resize', resizeRadar);
 
     // ─── Logging ──────────────────────────────────────
     let logEmpty = true;
@@ -762,6 +1226,10 @@
         setStatus('connected', 'Conectado', `ID: ${CONFIG.clientId.slice(-6)}`);
         addLog('✅ Conectado a HiveMQ Cloud', 'ok');
         client.subscribe(CONFIG.topicStatus, { qos: 1 });
+        client.subscribe(CONFIG.topicDht, { qos: 0 });
+        client.subscribe(CONFIG.topicGas, { qos: 0 });
+        client.subscribe(CONFIG.topicUltra, { qos: 0 });
+        addLog('📡 Suscrito a todos los sensores', 'ok');
       });
 
       client.on('reconnect', () => {
@@ -780,16 +1248,96 @@
       });
 
       client.on('message', (topic, payload) => {
+        const msg = payload.toString();
+
+        // ── Mensajes de estado de motores ──
         if (topic === CONFIG.topicStatus) {
           try {
-            const data = JSON.parse(payload.toString());
+            const data = JSON.parse(msg);
             if (data.status === 'online') {
               addLog('🤖 ESP32 conectado', 'ok');
             } else if (data.ok) {
               addLog(`✓ ESP32 confirmó: ${CMD_LABELS[data.cmd] || data.cmd}`, 'ok');
             }
           } catch {
-            addLog(`📨 ${payload.toString()}`);
+            addLog(`📨 ${msg}`);
+          }
+        }
+
+        // ── Mensajes del sensor DHT22 ──
+        if (topic === CONFIG.topicDht) {
+          try {
+            const data = JSON.parse(msg);
+            const now = new Date().toLocaleTimeString('es-ES', { hour12: false });
+
+            valTemp.innerHTML = `${data.temperatura.toFixed(1)}<span class="sensor-card__unit">°C</span>`;
+            valHum.innerHTML = `${data.humedad.toFixed(1)}<span class="sensor-card__unit">%</span>`;
+            valHeat.innerHTML = `${data.sensacion.toFixed(1)}<span class="sensor-card__unit">°C</span>`;
+
+            timeTemp.textContent = now;
+            timeHum.textContent = now;
+            timeHeat.textContent = now;
+
+            [cardTemp, cardHum, cardHeat].forEach(card => {
+              card.classList.add('active', 'pulse');
+              setTimeout(() => card.classList.remove('pulse'), 500);
+            });
+
+            addLog(`🌡️ ${data.temperatura.toFixed(1)}°C | 💧 ${data.humedad.toFixed(1)}% | 🔥 ${data.sensacion.toFixed(1)}°C`);
+          } catch (e) {
+            addLog(`⚠️ Error parseando DHT: ${e.message}`, 'err');
+          }
+        }
+
+        // ── Mensajes del sensor de gas MQ2 ──
+        if (topic === CONFIG.topicGas) {
+          try {
+            const data = JSON.parse(msg);
+            const now = new Date().toLocaleTimeString('es-ES', { hour12: false });
+
+            gasValue.textContent = `${data.porcentaje}%`;
+            gasRaw.textContent = data.raw;
+            gasTime.textContent = now;
+            gasBar.style.width = `${data.porcentaje}%`;
+
+            // Color de la barra según nivel
+            if (data.estado === 'peligro') {
+              gasBar.style.background = 'linear-gradient(90deg, var(--orange), var(--red))';
+              gasCard.className = 'gas-card peligro';
+              gasStatus.className = 'gas-card__status peligro';
+              gasStatus.textContent = '⚠ PELIGRO';
+            } else if (data.estado === 'alerta') {
+              gasBar.style.background = 'linear-gradient(90deg, var(--green), var(--orange))';
+              gasCard.className = 'gas-card alerta';
+              gasStatus.className = 'gas-card__status alerta';
+              gasStatus.textContent = 'ALERTA';
+            } else {
+              gasBar.style.background = 'linear-gradient(90deg, var(--green), var(--green))';
+              gasCard.className = 'gas-card';
+              gasStatus.className = 'gas-card__status';
+              gasStatus.textContent = 'NORMAL';
+            }
+
+            addLog(`💨 Gas: ${data.porcentaje}% (${data.estado})`);
+          } catch (e) {
+            addLog(`⚠️ Error parseando Gas: ${e.message}`, 'err');
+          }
+        }
+
+        // ── Mensajes del sensor ultrasonico + servo ──
+        if (topic === CONFIG.topicUltra) {
+          try {
+            const data = JSON.parse(msg);
+            const angulo = data.angulo !== undefined ? data.angulo : 0;
+            radarAngle = angulo;
+
+            radarDistance.innerHTML = `${data.distancia.toFixed(1)} <small>cm</small> · ${angulo}°`;
+
+            // Guardar punto con ángulo real
+            radarHistory.push({ angulo: angulo, distancia: data.distancia });
+            if (radarHistory.length > RADAR_MAX_POINTS) radarHistory.shift();
+          } catch (e) {
+            addLog(`⚠️ Error parseando Radar: ${e.message}`, 'err');
           }
         }
       });
@@ -867,6 +1415,158 @@
       pressedKeys.delete(key);
       if (pressedKeys.size === 0) sendCommand('S');
     });
+
+    // ─── Radar Drawing ──────────────────────────────────
+    function drawRadar() {
+      const w = radarCanvas.width / window.devicePixelRatio;
+      const h = radarCanvas.height / window.devicePixelRatio;
+      const cx = w / 2;
+      const cy = h;
+      const maxR = Math.min(cx, h) - 10;
+
+      radarCtx.clearRect(0, 0, w, h);
+
+      // ── Fondo con gradiente sutil ──
+      const bgGrad = radarCtx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+      bgGrad.addColorStop(0, 'rgba(34, 211, 238, 0.02)');
+      bgGrad.addColorStop(1, 'rgba(34, 211, 238, 0)');
+      radarCtx.beginPath();
+      radarCtx.arc(cx, cy, maxR, Math.PI, 0);
+      radarCtx.fillStyle = bgGrad;
+      radarCtx.fill();
+
+      // ── Anillos de referencia ──
+      const rings = [100, 200, 300, 400];
+      rings.forEach(dist => {
+        const r = (dist / RADAR_MAX_CM) * maxR;
+        radarCtx.beginPath();
+        radarCtx.arc(cx, cy, r, Math.PI, 0);
+        radarCtx.strokeStyle = 'rgba(100, 140, 255, 0.12)';
+        radarCtx.lineWidth = 1;
+        radarCtx.stroke();
+
+        radarCtx.fillStyle = 'rgba(136, 146, 168, 0.5)';
+        radarCtx.font = '9px Inter, sans-serif';
+        radarCtx.textAlign = 'center';
+        radarCtx.fillText(`${dist}cm`, cx, cy - r + 12);
+      });
+
+      // ── Líneas radiales con etiquetas de ángulo ──
+      for (let a = 0; a <= 180; a += 30) {
+        const rad = (a * Math.PI) / 180;
+        const ex = cx + maxR * Math.cos(Math.PI - rad);
+        const ey = cy - maxR * Math.sin(rad);
+        radarCtx.beginPath();
+        radarCtx.moveTo(cx, cy);
+        radarCtx.lineTo(ex, ey);
+        radarCtx.strokeStyle = 'rgba(100, 140, 255, 0.08)';
+        radarCtx.lineWidth = 1;
+        radarCtx.stroke();
+
+        // Etiqueta de ángulo
+        const lx = cx + (maxR + 12) * Math.cos(Math.PI - rad);
+        const ly = cy - (maxR + 12) * Math.sin(rad);
+        radarCtx.fillStyle = 'rgba(136, 146, 168, 0.4)';
+        radarCtx.font = '8px Inter, sans-serif';
+        radarCtx.textAlign = 'center';
+        radarCtx.fillText(`${a}°`, lx, ly + 3);
+      }
+
+      // ── Barrido del servo (sigue ángulo real) ──
+      const sweepRad = (radarAngle * Math.PI) / 180;
+      const sweepX = cx + maxR * Math.cos(Math.PI - sweepRad);
+      const sweepY = cy - maxR * Math.sin(sweepRad);
+
+      // Línea principal del barrido
+      const grad = radarCtx.createLinearGradient(cx, cy, sweepX, sweepY);
+      grad.addColorStop(0, 'rgba(34, 211, 238, 0)');
+      grad.addColorStop(0.5, 'rgba(34, 211, 238, 0.3)');
+      grad.addColorStop(1, 'rgba(34, 211, 238, 0.8)');
+
+      radarCtx.beginPath();
+      radarCtx.moveTo(cx, cy);
+      radarCtx.lineTo(sweepX, sweepY);
+      radarCtx.strokeStyle = grad;
+      radarCtx.lineWidth = 2;
+      radarCtx.stroke();
+
+      // Estela del barrido (abanico detrás de la línea)
+      for (let i = 1; i <= 20; i++) {
+        const trailAngle = radarAngle - i;
+        if (trailAngle < 0 || trailAngle > 180) continue;
+        const trailRad = (trailAngle * Math.PI) / 180;
+        const alpha = 0.12 * (1 - i / 20);
+        radarCtx.beginPath();
+        radarCtx.moveTo(cx, cy);
+        radarCtx.lineTo(
+          cx + maxR * Math.cos(Math.PI - trailRad),
+          cy - maxR * Math.sin(trailRad)
+        );
+        radarCtx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
+        radarCtx.lineWidth = 1;
+        radarCtx.stroke();
+      }
+
+      // ── Puntos de distancia (con ángulo real del servo) ──
+      const totalPts = radarHistory.length;
+      radarHistory.forEach((pt, i) => {
+        const pointRad = (pt.angulo * Math.PI) / 180;
+        const r = (Math.min(pt.distancia, RADAR_MAX_CM) / RADAR_MAX_CM) * maxR;
+        const px = cx + r * Math.cos(Math.PI - pointRad);
+        const py = cy - r * Math.sin(pointRad);
+
+        // Los puntos más recientes son más brillantes
+        const age = 1 - ((totalPts - i) / RADAR_MAX_POINTS);
+        const proximity = 1 - (pt.distancia / RADAR_MAX_CM);
+        const alpha = (0.1 + age * 0.9) * (0.4 + proximity * 0.6);
+        const size = 1.5 + proximity * 3;
+
+        // Color: verde (lejos) → amarillo (medio) → rojo (cerca)
+        let red, green;
+        if (proximity < 0.5) {
+          red = Math.floor(255 * proximity * 2);
+          green = 255;
+        } else {
+          red = 255;
+          green = Math.floor(255 * (1 - proximity) * 2);
+        }
+
+        radarCtx.beginPath();
+        radarCtx.arc(px, py, size, 0, Math.PI * 2);
+        radarCtx.fillStyle = `rgba(${red}, ${green}, 50, ${alpha})`;
+        radarCtx.fill();
+
+        // Glow para puntos cercanos
+        if (proximity > 0.5) {
+          radarCtx.beginPath();
+          radarCtx.arc(px, py, size + 4, 0, Math.PI * 2);
+          radarCtx.fillStyle = `rgba(${red}, ${green}, 50, ${alpha * 0.15})`;
+          radarCtx.fill();
+        }
+      });
+
+      // ── Línea base ──
+      radarCtx.beginPath();
+      radarCtx.moveTo(cx - maxR, cy);
+      radarCtx.lineTo(cx + maxR, cy);
+      radarCtx.strokeStyle = 'rgba(100, 140, 255, 0.25)';
+      radarCtx.lineWidth = 1;
+      radarCtx.stroke();
+
+      // Punto central con glow
+      radarCtx.beginPath();
+      radarCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+      radarCtx.fillStyle = 'rgba(34, 211, 238, 0.15)';
+      radarCtx.fill();
+      radarCtx.beginPath();
+      radarCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+      radarCtx.fillStyle = '#22d3ee';
+      radarCtx.fill();
+
+      radarAnimId = requestAnimationFrame(drawRadar);
+    }
+
+    drawRadar();
 
     // ─── Init ─────────────────────────────────────────
     connect();

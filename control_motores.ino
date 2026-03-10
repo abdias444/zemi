@@ -1,11 +1,14 @@
 // ============================================================
 //  ESP32 – Control de Motores DC vía MQTT (HiveMQ Cloud TLS)
 //  Recibe comandos F/B/L/R/S en el topic "zemi/motores/cmd"
+//  + DHT22 + MQ2 + HC-SR04 + Servo Radar
 // ============================================================
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <DHT.h>
+#include <ESP32Servo.h>
 
 // ─── WiFi ────────────────────────────────────────────────────
 const char* WIFI_SSID     = "Karen";       // ← Cambia esto
@@ -19,6 +22,59 @@ const char* MQTT_PASS     = "Admin123";
 // Client ID se genera en setup() para ser único
 const char* TOPIC_CMD     = "zemi/motores/cmd";
 const char* TOPIC_STATUS  = "zemi/motores/status";
+const char* TOPIC_BATTERY = "zemi/motores/bateria";
+const char* TOPIC_DHT     = "zemi/sensores/dht";
+const char* TOPIC_GAS     = "zemi/sensores/gas";
+const char* TOPIC_ULTRA   = "zemi/sensores/ultrasonico";
+
+// ─── Sensor DHT22 ───────────────────────────────────────────
+constexpr uint8_t DHT_PIN  = 26;       // GPIO26
+#define DHT_TYPE DHT22
+DHT dht(DHT_PIN, DHT_TYPE);
+
+constexpr unsigned long DHT_INTERVAL = 5000;  // leer cada 5 segundos
+unsigned long lastDhtRead = 0;
+
+// ─── Sensor MQ2 (Gas) ───────────────────────────────────────
+constexpr uint8_t MQ2_PIN = 25;        // GPIO25 (ADC2_CH8)
+constexpr unsigned long GAS_INTERVAL = 3000;  // leer cada 3 segundos
+unsigned long lastGasRead = 0;
+
+// ─── Sensor Ultrasonico HC-SR04 ─────────────────────────────
+constexpr uint8_t TRIG_PIN = 32;       // GPIO32
+constexpr uint8_t ECHO_PIN = 33;       // GPIO33
+constexpr float MAX_DISTANCE = 400.0;  // distancia máxima en cm
+
+// ─── Servo Motor (Radar Paneo) ──────────────────────────────
+constexpr uint8_t SERVO_PIN = 34;      // GPIO34 – Señal del servo
+Servo servoRadar;
+
+int servoAngle = 0;                     // Ángulo actual del servo
+int servoDirection = 1;                 // 1 = subiendo (0→180), -1 = bajando (180→0)
+constexpr int SERVO_STEP = 2;           // Grados por paso
+constexpr unsigned long SERVO_DELAY = 30; // ms entre pasos
+unsigned long lastServoStep = 0;
+
+// ─── Batería (ADC) ──────────────────────────────────────────
+// Pin ADC para leer voltaje de batería (usa divisor de voltaje)
+constexpr uint8_t BAT_PIN = 35;        // GPIO35 (ADC1_CH7, solo lectura)
+
+// Parámetros del divisor de voltaje
+// Si usas R1=100kΩ y R2=100kΩ → factor = 2.0
+// Vbat_max ≈ 8.4V (2S LiPo) → al ADC llegan ~4.2V (dentro del rango 3.3V con atenuación 11dB)
+constexpr float DIVISOR_FACTOR  = 2.0;   // (R1 + R2) / R2
+constexpr float VREF            = 3.3;   // Voltaje de referencia ADC
+constexpr int   ADC_RESOLUTION  = 4095;  // 12 bits
+
+// Umbrales de batería (ajustar según tu batería)
+constexpr float BAT_FULL        = 8.40;  // 100% – 2S LiPo completamente cargada
+constexpr float BAT_EMPTY       = 6.00;  // 0%   – 2S LiPo descargada (corte seguro)
+
+// Intervalo de lectura de batería (ms)
+constexpr unsigned long BAT_INTERVAL = 10000;  // cada 10 segundos
+unsigned long lastBatRead = 0;
+
+
 
 // ─── Pines del puente H ─────────────────────────────────────
 constexpr uint8_t IN1 = 13;   // Motor A+
@@ -74,11 +130,168 @@ void aplicarMotores(bool a1, bool a2, bool b1, bool b2) {
   digitalWrite(IN4, b2);
 }
 
-void adelante()   { aplicarMotores(HIGH, LOW,  HIGH, LOW);  }
-void atras()      { aplicarMotores(LOW,  HIGH, LOW,  HIGH); }
-void izquierda()  { aplicarMotores(LOW,  HIGH, HIGH, LOW);  }
-void derecha()    { aplicarMotores(HIGH, LOW,  LOW,  HIGH); }
+void adelante()   { aplicarMotores(HIGH, LOW,  LOW,  HIGH); }  // Motor A adelante, Motor B atrás → avanza
+void atras()      { aplicarMotores(LOW,  HIGH, HIGH, LOW);  }  // Motor A atrás,    Motor B adelante → retrocede
+void izquierda()  { aplicarMotores(LOW,  HIGH, LOW,  HIGH); }  // Ambos atrás → gira izquierda
+void derecha()    { aplicarMotores(HIGH, LOW,  HIGH, LOW);  }  // Ambos adelante → gira derecha
 void detener()    { aplicarMotores(LOW,  LOW,  LOW,  LOW);  }
+
+// ─── Lectura de batería ─────────────────────────────────────
+float leerVoltajeBateria() {
+  // Promedio de 10 lecturas para mayor estabilidad
+  long suma = 0;
+  for (int i = 0; i < 10; i++) {
+    suma += analogRead(BAT_PIN);
+    delay(2);
+  }
+  float promedioADC = suma / 10.0;
+
+  // Convertir lectura ADC a voltaje real de la batería
+  float voltajeADC = (promedioADC / ADC_RESOLUTION) * VREF;
+  float voltajeBat = voltajeADC * DIVISOR_FACTOR;
+
+  return voltajeBat;
+}
+
+int calcularPorcentaje(float voltaje) {
+  if (voltaje >= BAT_FULL) return 100;
+  if (voltaje <= BAT_EMPTY) return 0;
+  return (int)(((voltaje - BAT_EMPTY) / (BAT_FULL - BAT_EMPTY)) * 100.0);
+}
+
+void reportarBateria() {
+  float voltaje = leerVoltajeBateria();
+  int porcentaje = calcularPorcentaje(voltaje);
+
+  // ── Reporte por Serial ──
+  Serial.println("──────────────────────────────────");
+  Serial.printf("🔋 Batería: %.2f V  |  %d%%\n", voltaje, porcentaje);
+
+  if (porcentaje <= 10) {
+    Serial.println("⚠️  ¡BATERÍA CRÍTICA! Recarga pronto.");
+  } else if (porcentaje <= 25) {
+    Serial.println("🟡 Batería baja.");
+  } else {
+    Serial.println("🟢 Batería OK.");
+  }
+  Serial.println("──────────────────────────────────");
+
+  // ── Publicar por MQTT ──
+  if (mqtt.connected()) {
+    char payload[96];
+    snprintf(payload, sizeof(payload),
+             "{\"voltaje\":%.2f,\"porcentaje\":%d,\"estado\":\"%s\"}",
+             voltaje, porcentaje,
+             porcentaje <= 10 ? "critico" : (porcentaje <= 25 ? "bajo" : "ok"));
+    mqtt.publish(TOPIC_BATTERY, payload);
+  }
+}
+
+// ─── Lectura de DHT22 ───────────────────────────────────────
+void reportarDHT() {
+  float temp = dht.readTemperature();
+  float hum  = dht.readHumidity();
+
+  if (isnan(temp) || isnan(hum)) {
+    Serial.println("[DHT22] ⚠️ Error al leer el sensor.");
+    return;
+  }
+
+  // Índice de calor
+  float hic = dht.computeHeatIndex(temp, hum, false);
+
+  // ── Reporte por Serial ──
+  Serial.println("──────────────────────────────────");
+  Serial.printf("🌡️  Temperatura: %.1f °C\n", temp);
+  Serial.printf("💧 Humedad:     %.1f %%\n", hum);
+  Serial.printf("🔥 Sensación:   %.1f °C\n", hic);
+  Serial.println("──────────────────────────────────");
+
+  // ── Publicar por MQTT ──
+  if (mqtt.connected()) {
+    char payload[128];
+    snprintf(payload, sizeof(payload),
+             "{\"temperatura\":%.1f,\"humedad\":%.1f,\"sensacion\":%.1f}",
+             temp, hum, hic);
+    mqtt.publish(TOPIC_DHT, payload);
+  }
+}
+
+// ─── Lectura de MQ2 (Gas) ───────────────────────────────────
+void reportarGas() {
+  // Promedio de 5 lecturas
+  long suma = 0;
+  for (int i = 0; i < 5; i++) {
+    suma += analogRead(MQ2_PIN);
+    delay(2);
+  }
+  int valorRaw = suma / 5;
+
+  // Mapear a porcentaje (0-4095 → 0-100%)
+  int porcentaje = map(valorRaw, 0, 4095, 0, 100);
+  porcentaje = constrain(porcentaje, 0, 100);
+
+  // Determinar estado de alerta
+  const char* estado;
+  if (porcentaje >= 70) {
+    estado = "peligro";
+  } else if (porcentaje >= 40) {
+    estado = "alerta";
+  } else {
+    estado = "normal";
+  }
+
+  // ── Reporte por Serial ──
+  Serial.println("──────────────────────────────────");
+  Serial.printf("💨 Gas MQ2: %d raw | %d%% | %s\n", valorRaw, porcentaje, estado);
+  Serial.println("──────────────────────────────────");
+
+  // ── Publicar por MQTT ──
+  if (mqtt.connected()) {
+    char payload[128];
+    snprintf(payload, sizeof(payload),
+             "{\"raw\":%d,\"porcentaje\":%d,\"estado\":\"%s\"}",
+             valorRaw, porcentaje, estado);
+    mqtt.publish(TOPIC_GAS, payload);
+  }
+}
+
+// ─── Lectura de Ultrasonico HC-SR04 (con ángulo del servo) ────
+float leerDistancia() {
+  // Enviar pulso de trigger
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  // Medir duración del eco
+  long duracion = pulseIn(ECHO_PIN, HIGH, 30000); // timeout 30ms
+
+  // Calcular distancia en cm
+  float distancia;
+  if (duracion == 0) {
+    distancia = MAX_DISTANCE; // Sin eco = fuera de rango
+  } else {
+    distancia = (duracion * 0.0343) / 2.0;
+    if (distancia > MAX_DISTANCE) distancia = MAX_DISTANCE;
+  }
+  return distancia;
+}
+
+void reportarRadar(int angulo, float distancia) {
+  // ── Reporte por Serial ──
+  Serial.printf("📡 Radar: %d° → %.1f cm\n", angulo, distancia);
+
+  // ── Publicar por MQTT ──
+  if (mqtt.connected()) {
+    char payload[96];
+    snprintf(payload, sizeof(payload),
+             "{\"angulo\":%d,\"distancia\":%.1f,\"max\":%.1f}",
+             angulo, distancia, MAX_DISTANCE);
+    mqtt.publish(TOPIC_ULTRA, payload);
+  }
+}
 
 // ─── Callback MQTT ──────────────────────────────────────────
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -146,6 +359,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\n========================================");
   Serial.println("  ESP32 Motor Controller — MQTT + TLS  ");
+  Serial.println("  DHT22+MQ2+HC-SR04+Servo Radar+Bat    ");
   Serial.println("========================================");
 
   // Configurar pines de motor como salida
@@ -154,6 +368,35 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
   detener();
+
+  // Configurar ADC para batería
+  analogReadResolution(12);           // 12 bits (0-4095)
+  analogSetAttenuation(ADC_11db);     // Rango hasta ~3.3V
+  pinMode(BAT_PIN, INPUT);
+
+  // Inicializar DHT22
+  dht.begin();
+  Serial.println("[DHT22] Sensor inicializado en GPIO26.");
+
+  // Inicializar MQ2 (Gas)
+  pinMode(MQ2_PIN, INPUT);
+  Serial.println("[MQ2] Sensor de gas inicializado en GPIO25.");
+
+  // Inicializar Ultrasonico
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  Serial.println("[HC-SR04] Ultrasonico inicializado (TRIG=32, ECHO=33).");
+
+  // Inicializar Servo Radar
+  servoRadar.attach(SERVO_PIN, 500, 2400); // pulso min/max en µs
+  servoRadar.write(0);                     // posición inicial 0°
+  servoAngle = 0;
+  servoDirection = 1;
+  Serial.println("[SERVO] Radar servo inicializado en GPIO34 (0-180°).");
+
+  // Lectura inicial de batería
+  Serial.println("[BAT] Leyendo nivel de batería inicial...");
+  reportarBateria();
 
   // Conectar WiFi
   conectarWiFi();
@@ -189,4 +432,50 @@ void loop() {
   }
 
   mqtt.loop();
+
+  // ── Lecturas periódicas ──
+  unsigned long ahora = millis();
+
+  // Servo Radar: barrido continuo 0°→1800°→0° con lectura ultrasónica
+  if (ahora - lastServoStep >= SERVO_DELAY) {
+    lastServoStep = ahora;
+
+    // Mover servo al ángulo actual
+    servoRadar.write(servoAngle);
+    delay(15);  // breve pausa para que el servo se estabilice
+
+    // Leer distancia en esta posición
+    float dist = leerDistancia();
+    reportarRadar(servoAngle, dist);
+
+    // Avanzar al siguiente ángulo
+    servoAngle += SERVO_STEP * servoDirection;
+
+    // Invertir dirección en los límites
+    if (servoAngle >= 180) {
+      servoAngle = 180;
+      servoDirection = -1;
+    } else if (servoAngle <= 0) {
+      servoAngle = 0;
+      servoDirection = 1;
+    }
+  }
+
+  // Gas MQ2 cada 3 segundos
+  if (ahora - lastGasRead >= GAS_INTERVAL) {
+    lastGasRead = ahora;
+    reportarGas();
+  }
+
+  // DHT22 cada 5 segundos
+  if (ahora - lastDhtRead >= DHT_INTERVAL) {
+    lastDhtRead = ahora;
+    reportarDHT();
+  }
+
+  // Batería cada 10 segundos
+  if (ahora - lastBatRead >= BAT_INTERVAL) {
+    lastBatRead = ahora;
+    reportarBateria();
+  }
 }
