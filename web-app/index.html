@@ -880,6 +880,173 @@
       display: block;
     }
 
+    /* ─── Servo Controls ───────────────────────────── */
+    .servo-controls {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .servo-controls__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .servo-controls__mode {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .servo-mode-btn {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .servo-mode-btn.active {
+      background: rgba(34, 211, 238, 0.15);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    .servo-mode-btn:hover {
+      border-color: var(--cyan);
+    }
+
+    .servo-angle-display {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--cyan);
+      text-shadow: 0 0 10px var(--cyan-glow);
+      min-width: 55px;
+      text-align: right;
+    }
+
+    .servo-slider-container {
+      position: relative;
+      padding: 8px 0;
+    }
+
+    .servo-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(90deg,
+          rgba(248, 113, 113, 0.3) 0%,
+          rgba(251, 191, 36, 0.3) 25%,
+          rgba(52, 211, 153, 0.3) 50%,
+          rgba(251, 191, 36, 0.3) 75%,
+          rgba(248, 113, 113, 0.3) 100%);
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .servo-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), #0ea5e9);
+      box-shadow: 0 0 12px var(--cyan-glow), 0 2px 8px rgba(0, 0, 0, 0.3);
+      cursor: grab;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .servo-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 20px var(--cyan-glow), 0 2px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .servo-slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.1);
+    }
+
+    .servo-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), #0ea5e9);
+      box-shadow: 0 0 12px var(--cyan-glow), 0 2px 8px rgba(0, 0, 0, 0.3);
+      cursor: grab;
+    }
+
+    .servo-slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-top: 4px;
+    }
+
+    .servo-slider:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .servo-slider:disabled::-webkit-slider-thumb {
+      cursor: not-allowed;
+      background: var(--text-muted);
+    }
+
+    /* ─── Camera Section Original ────────────────────────── */
+    .camera-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 640px;
+      color: #333;
+    }
+    #cameraStream {
+      width: 100%;
+      max-width: 640px;
+      height: 480px;
+      border-radius: 8px;
+      border: 2px solid #333;
+    }
+    #btnOpenStream {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #btnOpenStream:hover {
+      background-color: #0056b3;
+    }
+    #btnOpenStream:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
     /* ─── Footer ─────────────────────────────────────── */
     .footer {
       position: relative;
@@ -1031,6 +1198,25 @@
       <div class="radar-canvas-container">
         <canvas id="radarCanvas"></canvas>
       </div>
+      <div class="servo-controls">
+        <div class="servo-controls__header">
+          <div class="servo-controls__mode">
+            <button id="btnServoAuto" class="servo-mode-btn active">🔄 Auto</button>
+            <button id="btnServoManual" class="servo-mode-btn">🎮 Manual</button>
+          </div>
+          <span id="servoAngleDisplay" class="servo-angle-display">90°</span>
+        </div>
+        <div class="servo-slider-container">
+          <input type="range" id="servoSlider" class="servo-slider" min="0" max="180" value="90" step="1" disabled />
+          <div class="servo-slider-labels">
+            <span>0°</span>
+            <span>45°</span>
+            <span>90°</span>
+            <span>135°</span>
+            <span>180°</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1090,6 +1276,13 @@
     </div>
   </div>
 
+  <!-- ── Cámara Original ───────────────────────────── -->
+  <div class="container camera-container" id="cameraContainer">
+    <div id="cameraStatus" style="width: 100%; text-align: center; margin-bottom: 10px; font-weight: bold;">Esperando IP de cámara...</div>
+    <iframe id="cameraStream" src="" sandbox="allow-same-origin allow-scripts" title="Stream de cámara" style="display:none; border:none; background:#000;"></iframe>
+    <button id="btnOpenStream" disabled style="display:none;">Abrir Stream en Nueva Pestaña</button>
+  </div>
+
   <!-- ── Footer ───────────────────────────────────── -->
   <footer class="footer">Zemi Tech Explorer © 2026</footer>
 
@@ -1106,6 +1299,8 @@
       topicDht: 'zemi/sensores/dht',
       topicGas: 'zemi/sensores/gas',
       topicUltra: 'zemi/sensores/ultrasonico',
+      topicServo: 'zemi/servo/cmd',
+      topicCameraIP: 'zemi/camera/ip',
     };
 
     // ─── Command Map ──────────────────────────────────
@@ -1162,6 +1357,21 @@
     const RADAR_MAX_CM = 400;
     let radarAngle = 0;  // ángulo actual del servo (viene por MQTT)
     let radarAnimId = null;
+
+    // ── Servo control DOM ──
+    const servoSlider = $('servoSlider');
+    const servoAngleDisplay = $('servoAngleDisplay');
+    const btnServoAuto = $('btnServoAuto');
+    const btnServoManual = $('btnServoManual');
+    let servoMode = 'auto'; // 'auto' o 'manual'
+
+    // ── Camera DOM ──
+    const cameraContainer = $('cameraContainer');
+    const cameraStream = $('cameraStream');
+    const cameraStatus = $('cameraStatus');
+    const btnOpenStream = $('btnOpenStream');
+    let cameraStreamUrl = null;
+    let cameraBaseUrl = null;
 
     // Resize canvas
     function resizeRadar() {
@@ -1229,7 +1439,10 @@
         client.subscribe(CONFIG.topicDht, { qos: 0 });
         client.subscribe(CONFIG.topicGas, { qos: 0 });
         client.subscribe(CONFIG.topicUltra, { qos: 0 });
+        client.subscribe(CONFIG.topicServo, { qos: 0 });
+        client.subscribe(CONFIG.topicCameraIP, { qos: 0 });
         addLog('📡 Suscrito a todos los sensores', 'ok');
+        addLog('📷 Esperando IP de cámara...', 'ok');
       });
 
       client.on('reconnect', () => {
@@ -1340,6 +1553,29 @@
             addLog(`⚠️ Error parseando Radar: ${e.message}`, 'err');
           }
         }
+
+        // ── Mensaje IP de cámara ──
+        if (topic === CONFIG.topicCameraIP) {
+          let ip = null;
+          try {
+            const data = JSON.parse(msg);
+            ip = data.ip;
+          } catch (e) {
+            ip = msg.trim();
+          }
+          if (ip) {
+            cameraStreamUrl = 'http://' + ip + ':81/stream';
+            cameraBaseUrl = 'http://' + ip;
+            
+            // Colocar IP y mostrar iframe automáticamente
+            cameraStream.src = cameraStreamUrl;
+            cameraStream.style.display = 'block';
+            if (cameraStatus) cameraStatus.style.display = 'none';
+            btnOpenStream.disabled = false;
+            btnOpenStream.style.display = 'block';
+            addLog(`📷 Cámara auto-conectada a ${ip}`, 'ok');
+          }
+        }
       });
     }
 
@@ -1350,10 +1586,12 @@
         return;
       }
 
-      if (cmd === lastCmd && cmd !== 'S') return; // Evitar spam del mismo comando
+      if (cmd === lastCmd) return; // Evitar el spam estricto de cualquier comando (incluido el 'S')
       lastCmd = cmd;
 
-      client.publish(CONFIG.topicCmd, cmd, { qos: 1 });
+      // Usar QoS 0 (At most once / Fire and forget). 
+      // Es vital para control remoto en tiempo real, así los paquetes no se atascan creando latencia y "freezes".
+      client.publish(CONFIG.topicCmd, cmd, { qos: 0 }); 
       currentCmd.textContent = CMD_LABELS[cmd] || cmd;
       addLog(`📤 Enviado: ${CMD_LABELS[cmd] || cmd}`, 'cmd');
 
@@ -1362,6 +1600,13 @@
         b.classList.toggle('active', b.dataset.cmd === cmd);
       });
     }
+
+    // ─── Camera Controls ───────────────────────────────
+    btnOpenStream.addEventListener('click', () => {
+      if (cameraBaseUrl) {
+        window.open(cameraBaseUrl, '_blank');
+      }
+    });
 
     // ─── Button Events (touch + mouse) ───────────────
     buttons.forEach((btn) => {
@@ -1567,6 +1812,52 @@
     }
 
     drawRadar();
+
+    // ─── Servo Slider Control ─────────────────────────
+    function setServoMode(mode) {
+      servoMode = mode;
+      if (mode === 'auto') {
+        btnServoAuto.classList.add('active');
+        btnServoManual.classList.remove('active');
+        servoSlider.disabled = true;
+        if (client && client.connected) {
+          client.publish(CONFIG.topicServo, 'AUTO', { qos: 1 });
+          addLog('🔄 Servo: modo AUTO activado', 'cmd');
+        }
+      } else {
+        btnServoAuto.classList.remove('active');
+        btnServoManual.classList.add('active');
+        servoSlider.disabled = false;
+        addLog('🎮 Servo: modo MANUAL activado', 'cmd');
+        // Enviar ángulo actual del slider
+        sendServoAngle(parseInt(servoSlider.value));
+      }
+    }
+
+    function sendServoAngle(angle) {
+      if (!client || !client.connected) return;
+      servoAngleDisplay.textContent = `${angle}°`;
+      client.publish(CONFIG.topicServo, String(angle), { qos: 0 });
+    }
+
+    btnServoAuto.addEventListener('click', () => setServoMode('auto'));
+    btnServoManual.addEventListener('click', () => setServoMode('manual'));
+
+    // Slider input (mientras arrastra)
+    servoSlider.addEventListener('input', (e) => {
+      const angle = parseInt(e.target.value);
+      servoAngleDisplay.textContent = `${angle}°`;
+    });
+
+    // Slider change (al soltar)
+    let sliderThrottle = null;
+    servoSlider.addEventListener('input', (e) => {
+      const angle = parseInt(e.target.value);
+      servoAngleDisplay.textContent = `${angle}°`;
+      // Throttle: enviar máximo cada 50ms
+      if (sliderThrottle) clearTimeout(sliderThrottle);
+      sliderThrottle = setTimeout(() => sendServoAngle(angle), 50);
+    });
 
     // ─── Init ─────────────────────────────────────────
     connect();

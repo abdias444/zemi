@@ -8,7 +8,16 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <DHT.h>
-#include <ESP32Servo.h>
+#include <Adafruit_NeoPixel.h>
+
+// ─── NeoPixels ──────────────────────────────────────────────
+#define PIN            4   // Pin de datos D4 en ESP32
+#define NUMPIXELS      8   // Tus 8 LEDs
+#define BRIGHTNESS     150 // Brillo moderado para estabilidad
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
+// Servo controlado por LEDC nativo (no necesita libreria externa)
 
 // ─── WiFi ────────────────────────────────────────────────────
 const char* WIFI_SSID     = "Karen";       // ← Cambia esto
@@ -26,6 +35,7 @@ const char* TOPIC_BATTERY = "zemi/motores/bateria";
 const char* TOPIC_DHT     = "zemi/sensores/dht";
 const char* TOPIC_GAS     = "zemi/sensores/gas";
 const char* TOPIC_ULTRA   = "zemi/sensores/ultrasonico";
+const char* TOPIC_SERVO   = "zemi/servo/cmd";
 
 // ─── Sensor DHT22 ───────────────────────────────────────────
 constexpr uint8_t DHT_PIN  = 26;       // GPIO26
@@ -45,15 +55,31 @@ constexpr uint8_t TRIG_PIN = 32;       // GPIO32
 constexpr uint8_t ECHO_PIN = 33;       // GPIO33
 constexpr float MAX_DISTANCE = 400.0;  // distancia máxima en cm
 
-// ─── Servo Motor (Radar Paneo) ──────────────────────────────
-constexpr uint8_t SERVO_PIN = 34;      // GPIO34 – Señal del servo
-Servo servoRadar;
+// ─── Servo Motor (Radar Paneo) — LEDC nativo v3.x ──────────────
+// ESP32 Arduino Core 3.x: ledcAttach(pin, freq, res) + ledcWrite(pin, duty)
+constexpr uint8_t SERVO_PIN  = 15;     // GPIO15 – Señal PWM del servo
+constexpr int     SERVO_FREQ = 50;     // 50 Hz para servos
+constexpr uint8_t SERVO_RES  = 16;     // Resolución 16 bits (0-65535)
+// Duty cycle: 0° = 500µs → 1638, 180° = 2500µs → 8192
+constexpr int SERVO_MIN_DUTY = 1638;
+constexpr int SERVO_MAX_DUTY = 8192;
 
-int servoAngle = 0;                     // Ángulo actual del servo
-int servoDirection = 1;                 // 1 = subiendo (0→180), -1 = bajando (180→0)
-constexpr int SERVO_STEP = 2;           // Grados por paso
-constexpr unsigned long SERVO_DELAY = 30; // ms entre pasos
+int servoAngle = 90;
+int servoDirection = 1;
+constexpr int SERVO_STEP = 3;
+constexpr unsigned long SERVO_DELAY = 65; // 65ms permite que el ESP32 no asfixie su conexión Wi-Fi/MQTT
 unsigned long lastServoStep = 0;
+bool servoManual = false;
+unsigned long lastManualCmd = 0;
+unsigned long lastRadarReadManual = 0;
+constexpr unsigned long MANUAL_TIMEOUT = 10000;
+
+// Función para mover el servo a un ángulo (0-180)
+void moverServo(int angulo) {
+  angulo = constrain(angulo, 0, 180);
+  int duty = map(angulo, 0, 180, SERVO_MIN_DUTY, SERVO_MAX_DUTY);
+  ledcWrite(SERVO_PIN, duty);  // v3.x: usa pin directamente
+}
 
 // ─── Batería (ADC) ──────────────────────────────────────────
 // Pin ADC para leer voltaje de batería (usa divisor de voltaje)
@@ -265,8 +291,9 @@ float leerDistancia() {
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
 
-  // Medir duración del eco
-  long duracion = pulseIn(ECHO_PIN, HIGH, 30000); // timeout 30ms
+  // Medir duración del eco. 
+  // Reducido a 24000 (24ms) para que no ocupe todo el SERVO_DELAY, permitiendo a la red MQTT recibir el comando.
+  long duracion = pulseIn(ECHO_PIN, HIGH, 24000); 
 
   // Calcular distancia en cm
   float distancia;
@@ -297,24 +324,51 @@ void reportarRadar(int angulo, float distancia) {
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (length == 0) return;
 
-  char cmd = (char)payload[0];
-  Serial.printf("[MQTT] Comando recibido: %c\n", cmd);
+  // Crear string del payload
+  char msg[length + 1];
+  memcpy(msg, payload, length);
+  msg[length] = '\0';
 
-  switch (cmd) {
-    case 'F': adelante();  break;
-    case 'B': atras();     break;
-    case 'L': izquierda(); break;
-    case 'R': derecha();   break;
-    case 'S': detener();   break;
-    default:
-      Serial.printf("[MQTT] Comando desconocido: %c\n", cmd);
-      return;
+  // ── Comandos de motores ──
+  if (strcmp(topic, TOPIC_CMD) == 0) {
+    char cmd = msg[0];
+    Serial.printf("[MQTT] Comando motor: %c\n", cmd);
+
+    switch (cmd) {
+      case 'F': adelante();  break;
+      case 'B': atras();     break;
+      case 'L': izquierda(); break;
+      case 'R': derecha();   break;
+      case 'S': detener();   break;
+      default:
+        Serial.printf("[MQTT] Comando desconocido: %c\n", cmd);
+        return;
+    }
+
+    char estado[32];
+    snprintf(estado, sizeof(estado), "{\"cmd\":\"%c\",\"ok\":true}", cmd);
+    mqtt.publish(TOPIC_STATUS, estado);
   }
 
-  // Publicar estado de vuelta
-  char estado[32];
-  snprintf(estado, sizeof(estado), "{\"cmd\":\"%c\",\"ok\":true}", cmd);
-  mqtt.publish(TOPIC_STATUS, estado);
+  // ── Comandos de servo ──
+  if (strcmp(topic, TOPIC_SERVO) == 0) {
+    // Puede ser un número (angulo) o "AUTO" para modo automático
+    if (strcmp(msg, "AUTO") == 0) {
+      servoManual = false;
+      Serial.println("[SERVO] Modo AUTOMATICO activado.");
+    } else {
+      int angulo = atoi(msg);
+      angulo = constrain(angulo, 0, 180);
+      servoManual = true;
+      lastManualCmd = millis();
+      servoAngle = angulo;
+      moverServo(angulo);
+      Serial.printf("[SERVO] Modo MANUAL: %d°\n", angulo);
+      
+      // Ya NO bloqueamos el hilo con delay(100).
+      // Se leerá el radar asíncronamente en el loop() !
+    }
+  }
 }
 
 // ─── Conexión WiFi ──────────────────────────────────────────
@@ -342,7 +396,9 @@ void conectarMQTT() {
     if (mqtt.connect(clientId, MQTT_USER, MQTT_PASS)) {
       Serial.println("[MQTT] ¡Conectado!");
       mqtt.subscribe(TOPIC_CMD);
+      mqtt.subscribe(TOPIC_SERVO);
       Serial.printf("[MQTT] Suscrito a: %s\n", TOPIC_CMD);
+      Serial.printf("[MQTT] Suscrito a: %s\n", TOPIC_SERVO);
       mqtt.publish(TOPIC_STATUS, "{\"status\":\"online\"}");
     } else {
       int rc = mqtt.state();
@@ -361,6 +417,41 @@ void setup() {
   Serial.println("  ESP32 Motor Controller — MQTT + TLS  ");
   Serial.println("  DHT22+MQ2+HC-SR04+Servo Radar+Bat    ");
   Serial.println("========================================");
+
+  // ─── Secuencia de Inicio (NeoPixels) ───────────────────────
+  strip.begin();
+  strip.setBrightness(BRIGHTNESS);
+  strip.clear();
+  strip.show();
+  delay(500);
+
+  // 1. Mostrar ROJO en todos y esperar
+  for (int i = 0; i < NUMPIXELS; i++) {
+    strip.setPixelColor(i, strip.Color(255, 0, 0));
+  }
+  strip.show();
+  delay(1000); // 1 segundo en rojo
+
+  // 2. Mostrar VERDE en todos y esperar
+  for (int i = 0; i < NUMPIXELS; i++) {
+    strip.setPixelColor(i, strip.Color(0, 255, 0));
+  }
+  strip.show();
+  delay(1000); // 1 segundo en verde
+
+  // 3. Mostrar AZUL en todos y esperar
+  for (int i = 0; i < NUMPIXELS; i++) {
+    strip.setPixelColor(i, strip.Color(0, 0, 255));
+  }
+  strip.show();
+  delay(1000); // 1 segundo en azul
+
+  // 4. FINAL: Encender todos en BLANCO y dejar así
+  for (int i = 0; i < NUMPIXELS; i++) {
+    strip.setPixelColor(i, strip.Color(255, 255, 255));
+  }
+  strip.show();
+  // ────────────────────────────────────────────────────────────
 
   // Configurar pines de motor como salida
   pinMode(IN1, OUTPUT);
@@ -387,12 +478,19 @@ void setup() {
   pinMode(ECHO_PIN, INPUT);
   Serial.println("[HC-SR04] Ultrasonico inicializado (TRIG=32, ECHO=33).");
 
-  // Inicializar Servo Radar
-  servoRadar.attach(SERVO_PIN, 500, 2400); // pulso min/max en µs
-  servoRadar.write(0);                     // posición inicial 0°
-  servoAngle = 0;
+  // Inicializar Servo Radar con LEDC nativo (API v3.x)
+  ledcAttach(SERVO_PIN, SERVO_FREQ, SERVO_RES);  // v3.x: pin, freq, res
+  moverServo(90);  // posición inicial: centro
+  servoAngle = 90;
   servoDirection = 1;
-  Serial.println("[SERVO] Radar servo inicializado en GPIO34 (0-180°).");
+  servoManual = false;
+  Serial.println("[SERVO] Radar servo OK en GPIO15 (LEDC nativo, 0-180°).");
+  Serial.println("[SERVO] Probando servo: 0 -> 90 -> 180 -> 90");
+  moverServo(0);   delay(500);
+  moverServo(90);  delay(500);
+  moverServo(180); delay(500);
+  moverServo(90);  delay(300);
+  Serial.println("[SERVO] Test completado.");
 
   // Lectura inicial de batería
   Serial.println("[BAT] Leyendo nivel de batería inicial...");
@@ -436,28 +534,38 @@ void loop() {
   // ── Lecturas periódicas ──
   unsigned long ahora = millis();
 
-  // Servo Radar: barrido continuo 0°→1800°→0° con lectura ultrasónica
-  if (ahora - lastServoStep >= SERVO_DELAY) {
-    lastServoStep = ahora;
+  // Servo Radar: modo auto o manual
+  if (!servoManual) {
+    // MODO AUTO: barrido continuo 0°→180°→0°
+    if (ahora - lastServoStep >= SERVO_DELAY) {
+      lastServoStep = ahora;
 
-    // Mover servo al ángulo actual
-    servoRadar.write(servoAngle);
-    delay(15);  // breve pausa para que el servo se estabilice
+      moverServo(servoAngle);
+      delay(15);
 
-    // Leer distancia en esta posición
-    float dist = leerDistancia();
-    reportarRadar(servoAngle, dist);
+      float dist = leerDistancia();
+      reportarRadar(servoAngle, dist);
 
-    // Avanzar al siguiente ángulo
-    servoAngle += SERVO_STEP * servoDirection;
+      servoAngle += SERVO_STEP * servoDirection;
 
-    // Invertir dirección en los límites
-    if (servoAngle >= 180) {
-      servoAngle = 180;
-      servoDirection = -1;
-    } else if (servoAngle <= 0) {
-      servoAngle = 0;
-      servoDirection = 1;
+      if (servoAngle >= 180) {
+        servoAngle = 180;
+        servoDirection = -1;
+      } else if (servoAngle <= 0) {
+        servoAngle = 0;
+        servoDirection = 1;
+      }
+    }
+  } else {
+    // MODO MANUAL: volver a auto si no hay comandos en 10s
+    if (ahora - lastManualCmd >= MANUAL_TIMEOUT) {
+      servoManual = false;
+      Serial.println("[SERVO] Timeout manual, volviendo a AUTO.");
+    } else if (ahora - lastRadarReadManual >= 200) {
+      // 🚀 OPTIMIZACIÓN: Leer asíncronamente (sin delay) si el servo está quieto en modo manual
+      lastRadarReadManual = ahora;
+      float dist = leerDistancia();
+      reportarRadar(servoAngle, dist);
     }
   }
 
